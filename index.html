@@ -105,6 +105,15 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 const CLOUD_URL = "https://script.google.com/macros/s/AKfycbxQB4d609udJy6VCFjc87UtTtv8YeAvigYm0i5c_pj8nRVRunBqqOaUsPQZv7vt-i5p/exec";
+const ADMIN_WA_NUMBER = "0899-0121-222"; // nomor WA admin Setangkai Project, otomatis dituju saat klien kirim data
+
+function toWaFormat(rawPhone){
+  // ubah "0812-3456-7890" atau "0812 3456 7890" jadi format internasional "62812xxxxxxx" untuk link wa.me
+  let digits = String(rawPhone||'').replace(/\D/g,'');
+  if(digits.startsWith('0')) digits = '62' + digits.slice(1);
+  else if(digits.startsWith('8')) digits = '62' + digits;
+  return digits;
+}
 
 let screen = 'welcome'; // welcome | form | success
 let packages = [];
@@ -147,7 +156,7 @@ function renderSuccess(){
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
       </div>
       <h1>Data Berhasil Dikirim!</h1>
-      <p>Terima kasih sudah mengisi data acaramu. Tim Setangkai Project akan segera meninjau dan menghubungimu untuk konfirmasi lebih lanjut.</p>
+      <p>Terima kasih sudah mengisi data acaramu. Sebuah tab WhatsApp sudah terbuka dengan pesan rekap acara — tinggal tekan Kirim di sana ya, agar tim kami langsung menerima notifikasinya.</p>
       <button class="btn-ghost" onclick="resetForm()">Isi Data Lain</button>
     </div>
   `;
@@ -171,6 +180,10 @@ function renderForm(){
         <div class="field">
           <label>Nama & Pasangan</label>
           <input id="f-nama" placeholder="mis. Azki & Rama">
+        </div>
+        <div class="field">
+          <label>Nomor WhatsApp</label>
+          <input id="f-wa" type="tel" inputmode="numeric" placeholder="mis. 0812-3456-7890">
         </div>
         <div class="field">
           <label>Instagram <span class="opt">(opsional)</span></label>
@@ -327,6 +340,7 @@ function useMyLocation(){
 
 async function submitForm(){
   const nama = document.getElementById('f-nama').value.trim();
+  const nomorWa = document.getElementById('f-wa').value.trim();
   const tanggal = document.getElementById('f-tanggal').value;
   let jenis = document.getElementById('f-jenis').value;
   if(jenis === '__lainnya') jenis = document.getElementById('f-jenis-lainnya').value.trim();
@@ -334,6 +348,7 @@ async function submitForm(){
   if(paket === '__lainnya') paket = '';
 
   if(!nama){ submitError = 'Nama & Pasangan wajib diisi.'; render(); return; }
+  if(!nomorWa){ submitError = 'Nomor WhatsApp wajib diisi.'; render(); return; }
   if(!jenis){ submitError = 'Jenis Acara wajib diisi.'; render(); return; }
   if(!tanggal){ submitError = 'Tanggal Acara wajib diisi.'; render(); return; }
 
@@ -349,6 +364,7 @@ async function submitForm(){
   const payload = {
     __formSubmission: true,
     namaPasangan: nama,
+    nomorWhatsapp: nomorWa,
     instagram: document.getElementById('f-ig').value.trim(),
     jenisAcara: jenis,
     tanggal: tanggal,
@@ -359,6 +375,25 @@ async function submitForm(){
     shareloc: document.getElementById('f-shareloc-manual').value.trim()
   };
 
+  // susun pesan WhatsApp rekap acara, ditujukan ke nomor admin Setangkai Project
+  const waMessage =
+`Halo Setangkai Project, saya baru saja mengisi data acara:
+
+Nama & Pasangan: ${nama}
+Nomor WhatsApp: ${nomorWa}
+Jenis Acara: ${jenis}
+Tanggal: ${tanggal}
+Waktu: ${waktuMulai || '-'} - ${waktuSelesai || '-'}
+Paket: ${paket || '-'}
+Lokasi: ${payload.lokasi || '-'}
+Shareloc: ${payload.shareloc || '-'}
+
+Mohon dikonfirmasi ya, terima kasih.`;
+  const waLink = `https://wa.me/${toWaFormat(ADMIN_WA_NUMBER)}?text=${encodeURIComponent(waMessage)}`;
+
+  // buka jendela WA secara sinkron (sebelum await) supaya tidak diblokir popup blocker browser
+  const waWindow = window.open('about:blank', '_blank');
+
   try{
     const res = await fetch(CLOUD_URL, {
       method: 'POST',
@@ -367,10 +402,12 @@ async function submitForm(){
     });
     const json = await res.json();
     if(!json.ok) throw new Error(json.error || 'Gagal mengirim data');
+    if(waWindow) waWindow.location.href = waLink;
     submitting = false;
     screen = 'success';
     render();
   }catch(err){
+    if(waWindow) waWindow.close();
     submitting = false;
     submitError = 'Gagal mengirim data: ' + err.message + '. Coba lagi ya.';
     render();
