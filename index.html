@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Isi Data Acara — Setangkai Project</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{
+    --bg:#FAF6EF;
+    --surface:#FFFFFF;
+    --ink:#2A2A24;
+    --ink-soft:#7A7466;
+    --primary:#2F4B3C;
+    --primary-dark:#22392C;
+    --primary-soft:#E7EDE6;
+    --accent:#C08573;
+    --accent-soft:#F4E5DF;
+    --border:#E6DFCF;
+    --danger:#A6473C;
+    --danger-soft:#F3E1DE;
+    --success:#3E6B4F;
+    --success-soft:#E4EDE6;
+    --radius:10px;
+    --shadow: 0 1px 2px rgba(42,42,36,0.06), 0 4px 16px rgba(42,42,36,0.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Inter',sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    letter-spacing:-0.01em;
+    color:var(--primary-dark);
+  }
+  button{font-family:'Inter',sans-serif;cursor:pointer;}
+  input,select,textarea{font-family:'Inter',sans-serif;}
+
+  #app{max-width:640px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+
+  /* ---- Welcome screen ---- */
+  .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 24px;}
+  .welcome .tag{font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:10px;}
+  .welcome h1{font-size:30px;margin:0 0 12px 0;line-height:1.25;}
+  .welcome p{color:var(--ink-soft);font-size:14.5px;line-height:1.6;max-width:420px;margin:0 0 30px 0;}
+  .welcome .btn-main{display:inline-flex;align-items:center;gap:8px;background:var(--primary);color:#fff;border:none;border-radius:999px;padding:15px 30px;font-size:15px;font-weight:600;box-shadow:var(--shadow);transition:background .15s ease, transform .1s ease;}
+  .welcome .btn-main:hover{background:var(--primary-dark);}
+  .welcome .btn-main:active{transform:scale(0.98);}
+  .welcome-badge{width:64px;height:64px;border-radius:50%;background:var(--primary-soft);display:flex;align-items:center;justify-content:center;margin-bottom:22px;}
+  .welcome-badge svg{width:28px;height:28px;color:var(--primary);}
+
+  /* ---- Form screen ---- */
+  .formscreen{flex:1;padding:28px 20px 60px 20px;}
+  .fs-head{margin-bottom:22px;}
+  .fs-head h2{font-size:21px;margin:0 0 6px 0;}
+  .fs-head p{color:var(--ink-soft);font-size:13.5px;margin:0;}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px;}
+  .field .opt{font-weight:400;color:var(--ink-soft);}
+  .field input, .field select, .field textarea{
+    width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;color:var(--ink);
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{outline:none;border-color:var(--primary);}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media (max-width:480px){ .field-row{grid-template-columns:1fr;} }
+  .section-title{font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent);font-weight:700;margin:26px 0 12px 0;}
+  .section-title:first-child{margin-top:0;}
+  .hint{font-size:12px;color:var(--ink-soft);margin-top:-8px;margin-bottom:16px;line-height:1.5;}
+
+  #map{height:230px;border-radius:8px;border:1px solid var(--border);margin-bottom:10px;}
+  .loc-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .btn-ghost{background:var(--primary-soft);color:var(--primary-dark);border:none;border-radius:8px;padding:9px 14px;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;}
+  .btn-ghost:hover{background:#DCE4DA;}
+  .loc-status{font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;}
+  .loc-status.picked{color:var(--success);font-weight:600;}
+
+  .submit-bar{margin-top:26px;}
+  .btn-submit{width:100%;background:var(--primary);color:#fff;border:none;border-radius:8px;padding:14px;font-size:15px;font-weight:700;box-shadow:var(--shadow);}
+  .btn-submit:hover{background:var(--primary-dark);}
+  .btn-submit:disabled{opacity:0.6;cursor:not-allowed;}
+  .err-text{color:var(--danger);font-size:12.5px;margin-top:10px;text-align:center;}
+
+  /* ---- Success screen ---- */
+  .success{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 24px;}
+  .success-badge{width:64px;height:64px;border-radius:50%;background:var(--success-soft);display:flex;align-items:center;justify-content:center;margin-bottom:20px;}
+  .success-badge svg{width:30px;height:30px;color:var(--success);}
+  .success h1{font-size:24px;margin:0 0 10px 0;}
+  .success p{color:var(--ink-soft);font-size:14px;max-width:380px;line-height:1.6;margin:0 0 26px 0;}
+
+  .foot-brand{text-align:center;font-size:11px;color:var(--ink-soft);padding:16px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const CLOUD_URL = "https://script.google.com/macros/s/AKfycbxQB4d609udJy6VCFjc87UtTtv8YeAvigYm0i5c_pj8nRVRunBqqOaUsPQZv7vt-i5p/exec";
+
+let screen = 'welcome'; // welcome | form | success
+let packages = [];
+let packagesLoaded = false;
+let map, marker;
+let picked = null; // {lat, lng}
+let submitting = false;
+let submitError = '';
+
+function render(){
+  const app = document.getElementById('app');
+  if(screen === 'welcome') app.innerHTML = renderWelcome();
+  else if(screen === 'form') app.innerHTML = renderForm();
+  else app.innerHTML = renderSuccess();
+
+  if(screen === 'form'){
+    setTimeout(initMap, 0);
+    if(!packagesLoaded) loadPackages();
+  }
+}
+
+function renderWelcome(){
+  return `
+    <div class="welcome">
+      <div class="welcome-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.6 6.2L21 9l-5 4.4L17.4 21 12 17.3 6.6 21 8 13.4 3 9l6.4-0.8z"/></svg>
+      </div>
+      <div class="tag">Setangkai Project</div>
+      <h1>Isi Data Acara Kamu</h1>
+      <p>Sebelum hari-H, bantu kami lengkapi data acaramu supaya persiapan tim berjalan lancar. Hanya butuh beberapa menit.</p>
+      <button class="btn-main" onclick="goToForm()">Isi Data Sekarang →</button>
+    </div>
+  `;
+}
+
+function renderSuccess(){
+  return `
+    <div class="success">
+      <div class="success-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <h1>Data Berhasil Dikirim!</h1>
+      <p>Terima kasih sudah mengisi data acaramu. Tim Setangkai Project akan segera meninjau dan menghubungimu untuk konfirmasi lebih lanjut.</p>
+      <button class="btn-ghost" onclick="resetForm()">Isi Data Lain</button>
+    </div>
+  `;
+}
+
+function renderForm(){
+  const pkgOptions = packagesLoaded
+    ? (packages.length
+        ? packages.map(p=>`<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)}</option>`).join('')
+        : '')
+    : `<option value="">Memuat daftar paket...</option>`;
+
+  return `
+    <div class="formscreen">
+      <div class="fs-head">
+        <h2>Form Data Acara</h2>
+        <p>Lengkapi data di bawah ini sesuai rencana acaramu.</p>
+      </div>
+      <div class="panel">
+        <div class="section-title">Data Klien</div>
+        <div class="field">
+          <label>Nama & Pasangan</label>
+          <input id="f-nama" placeholder="mis. Azki & Rama">
+        </div>
+        <div class="field">
+          <label>Instagram <span class="opt">(opsional)</span></label>
+          <input id="f-ig" placeholder="mis. @azki.rama">
+        </div>
+
+        <div class="section-title">Detail Acara</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Jenis Acara</label>
+            <select id="f-jenis" onchange="onJenisChange()">
+              <option value="">— pilih —</option>
+              <option>Wedding</option>
+              <option>Engagement</option>
+              <option>Prewedding</option>
+              <option>Lamaran</option>
+              <option>Ulang Tahun</option>
+              <option>Corporate</option>
+              <option value="__lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div class="field" id="jenis-lainnya-field" style="display:none;">
+            <label>Sebutkan Jenis Acara</label>
+            <input id="f-jenis-lainnya" placeholder="mis. Sunatan">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Tanggal Acara</label>
+            <input id="f-tanggal" type="date">
+          </div>
+          <div class="field">
+            <label>Paket yang Diambil</label>
+            <select id="f-paket">
+              <option value="">— pilih paket —</option>
+              ${pkgOptions}
+              <option value="__lainnya">Belum tahu / Lainnya</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Waktu Mulai</label>
+            <input id="f-waktu-mulai" type="time">
+          </div>
+          <div class="field">
+            <label>Waktu Selesai</label>
+            <input id="f-waktu-selesai" type="time">
+          </div>
+        </div>
+        <div class="field">
+          <label>Lokasi Acara</label>
+          <input id="f-lokasi" placeholder="mis. Cluster Alamanda, Depok">
+        </div>
+
+        <div class="section-title">Shareloc</div>
+        <div class="hint">Klik titik lokasi di peta untuk membagikan titik acara yang tepat, atau gunakan tombol di bawah.</div>
+        <div class="loc-actions">
+          <button type="button" class="btn-ghost" onclick="useMyLocation()">📍 Gunakan Lokasi Saya</button>
+        </div>
+        <div id="map"></div>
+        <div class="loc-status ${picked ? 'picked' : ''}" id="loc-status">${picked ? 'Titik lokasi dipilih ✓' : 'Belum ada titik dipilih'}</div>
+        <div class="field">
+          <label>Atau tempel link Google Maps <span class="opt">(opsional)</span></label>
+          <input id="f-shareloc-manual" placeholder="https://maps.google.com/..." oninput="onManualLocInput()">
+        </div>
+
+        <div class="submit-bar">
+          <button class="btn-submit" id="btn-submit" onclick="submitForm()" ${submitting?'disabled':''}>${submitting? 'Mengirim...' : 'Kirim Data'}</button>
+          ${submitError ? `<div class="err-text">${escapeHtml(submitError)}</div>` : ''}
+        </div>
+      </div>
+    </div>
+    <div class="foot-brand">Setangkai Project</div>
+  `;
+}
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function goToForm(){ screen = 'form'; render(); }
+function resetForm(){
+  picked = null; submitError=''; submitting=false;
+  screen = 'welcome'; render();
+}
+
+function onJenisChange(){
+  const v = document.getElementById('f-jenis').value;
+  document.getElementById('jenis-lainnya-field').style.display = (v === '__lainnya') ? 'block' : 'none';
+}
+
+async function loadPackages(){
+  packagesLoaded = false;
+  try{
+    const res = await fetch(CLOUD_URL, {method:'GET'});
+    const json = await res.json();
+    if(json.ok && json.data && Array.isArray(json.data.packages)){
+      packages = json.data.packages;
+    } else {
+      packages = [];
+    }
+  }catch(err){
+    packages = [];
+  }
+  packagesLoaded = true;
+  if(screen === 'form') render();
+}
+
+function initMap(){
+  const el = document.getElementById('map');
+  if(!el || map) return;
+  map = L.map('map').setView([-6.2405, 106.9924], 11); // default: sekitar Bekasi
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+  map.on('click', function(e){
+    setPicked(e.latlng.lat, e.latlng.lng);
+  });
+  if(picked){ setPicked(picked.lat, picked.lng, true); }
+}
+
+function setPicked(lat, lng, skipMove){
+  picked = {lat, lng};
+  if(marker){ map.removeLayer(marker); }
+  marker = L.marker([lat, lng]).addTo(map);
+  if(!skipMove) map.panTo([lat, lng]);
+  document.getElementById('f-shareloc-manual').value = `https://www.google.com/maps?q=${lat.toFixed(6)},${lng.toFixed(6)}`;
+  const st = document.getElementById('loc-status');
+  if(st){ st.textContent = 'Titik lokasi dipilih ✓'; st.classList.add('picked'); }
+}
+
+function onManualLocInput(){
+  // Kalau user tempel link manual, kita anggap valid tanpa perlu titik peta
+  const v = document.getElementById('f-shareloc-manual').value.trim();
+  const st = document.getElementById('loc-status');
+  if(v && !picked){
+    if(st){ st.textContent = 'Link lokasi ditempel manual ✓'; st.classList.add('picked'); }
+  } else if(!v && !picked){
+    if(st){ st.textContent = 'Belum ada titik dipilih'; st.classList.remove('picked'); }
+  }
+}
+
+function useMyLocation(){
+  if(!navigator.geolocation){ alert('Perangkat tidak mendukung deteksi lokasi.'); return; }
+  navigator.geolocation.getCurrentPosition(function(pos){
+    setPicked(pos.coords.latitude, pos.coords.longitude);
+    if(map) map.setView([pos.coords.latitude, pos.coords.longitude], 15);
+  }, function(err){
+    alert('Tidak bisa mengambil lokasi: ' + err.message);
+  });
+}
+
+async function submitForm(){
+  const nama = document.getElementById('f-nama').value.trim();
+  const tanggal = document.getElementById('f-tanggal').value;
+  let jenis = document.getElementById('f-jenis').value;
+  if(jenis === '__lainnya') jenis = document.getElementById('f-jenis-lainnya').value.trim();
+  let paket = document.getElementById('f-paket').value;
+  if(paket === '__lainnya') paket = '';
+
+  if(!nama){ submitError = 'Nama & Pasangan wajib diisi.'; render(); return; }
+  if(!jenis){ submitError = 'Jenis Acara wajib diisi.'; render(); return; }
+  if(!tanggal){ submitError = 'Tanggal Acara wajib diisi.'; render(); return; }
+
+  submitError = '';
+  submitting = true;
+  render();
+
+  const waktuMulaiRaw = document.getElementById('f-waktu-mulai').value; // "07:00"
+  const waktuSelesaiRaw = document.getElementById('f-waktu-selesai').value;
+  const waktuMulai = waktuMulaiRaw ? waktuMulaiRaw.replace(':', '.') : '';
+  const waktuSelesai = waktuSelesaiRaw ? waktuSelesaiRaw.replace(':', '.') : '';
+
+  const payload = {
+    __formSubmission: true,
+    namaPasangan: nama,
+    instagram: document.getElementById('f-ig').value.trim(),
+    jenisAcara: jenis,
+    tanggal: tanggal,
+    waktuMulai: waktuMulai,
+    waktuSelesai: waktuSelesai,
+    paket: paket,
+    lokasi: document.getElementById('f-lokasi').value.trim(),
+    shareloc: document.getElementById('f-shareloc-manual').value.trim()
+  };
+
+  try{
+    const res = await fetch(CLOUD_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.error || 'Gagal mengirim data');
+    submitting = false;
+    screen = 'success';
+    render();
+  }catch(err){
+    submitting = false;
+    submitError = 'Gagal mengirim data: ' + err.message + '. Coba lagi ya.';
+    render();
+  }
+}
+
+render();
+</script>
+</body>
+</html>
